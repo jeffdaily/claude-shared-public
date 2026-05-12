@@ -1,5 +1,5 @@
 ---
-description: List all plans in ~/.claude/plans/, oldest first, with wrapped summaries
+description: List all plans in ~/.claude/plans/ with last-commit timestamp, oldest first, with wrapped summaries
 allowed-tools: Bash(bash:*)
 ---
 

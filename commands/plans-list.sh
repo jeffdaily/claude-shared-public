@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
-# Print the list of plans in ~/.claude/plans/ as a 2-column table:
-# filename and a wrapped first-heading summary, oldest mtime first.
+# Print the list of plans in ~/.claude/plans/ as a 3-column table:
+# last-modified timestamp, filename, and a wrapped first-heading summary,
+# oldest first (newest at the bottom).
+#
+# Timestamp comes from `git log -1` of the file's last commit so the value is
+# stable across hosts (git doesn't preserve mtimes on checkout). Files that
+# aren't in git yet (uncommitted new plans) fall back to the local mtime and
+# are flagged with a trailing "*" so it's clear they're local-only.
 #
 # Terminal width detection: the subshell spawned by Claude Code's slash-command
 # host has no tty, so `tput cols` falls back to 80. Borrow the parent process's
@@ -48,11 +54,32 @@ if [ -z "${found_tty}" ] || [ -n "${PLANS_DEBUG:-}" ]; then
 fi
 
 MAX_LINES=3
+DATE_W=17  # "YYYY-MM-DD HH:MM" + optional "*" marker
 
 shopt -s nullglob
 cd "${PLANS_DIR}"
+
+# Build records sorted ascending (newest at the bottom). Prefer the file's last
+# git commit time (stable across hosts); fall back to local mtime with a "*"
+# marker if the file isn't tracked yet.
+declare -A FILE_DISP=()
 files=()
-while IFS= read -r f; do files+=("$f"); done < <(ls -tr -- *.md 2>/dev/null)
+while IFS=$'\t' read -r _ts disp f; do
+  files+=("$f")
+  FILE_DISP[$f]=$disp
+done < <(
+  for p in *.md; do
+    [ -e "$p" ] || continue
+    ts=$(git log -1 --format=%ct -- "$p" 2>/dev/null || true)
+    marker=""
+    if [ -z "${ts}" ]; then
+      ts=$(stat -c '%Y' -- "$p")
+      marker="*"
+    fi
+    disp=$(date -d "@${ts}" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "                ")
+    printf '%s\t%s%s\t%s\n' "${ts}" "${disp}" "${marker}" "${p}"
+  done | sort -n
+)
 
 if [ "${#files[@]}" -eq 0 ]; then
   echo "(no plans)"
@@ -66,12 +93,14 @@ for f in "${files[@]}"; do
 done
 
 gap=2
-w=$(( cols - maxn - gap ))
+w=$(( cols - DATE_W - gap - maxn - gap ))
 if [ "${w}" -lt 20 ]; then w=20; fi
 
-pad=$(printf '%*s' "${maxn}" '')
+date_pad=$(printf '%*s' "${DATE_W}" '')
+name_pad=$(printf '%*s' "${maxn}" '')
 
 for f in "${files[@]}"; do
+  mtime=${FILE_DISP[$f]}
   title=$(head -1 "$f" | sed 's/^#* *//; s/[[:space:]]\+$//')
 
   wrapped=$(printf '%s\n' "${title}" | fmt -w "${w}" 2>/dev/null || printf '%s\n' "${title}")
@@ -97,9 +126,9 @@ for f in "${files[@]}"; do
   i=0
   while IFS= read -r line; do
     if [ "${i}" -eq 0 ]; then
-      printf '%-*s  %s\n' "${maxn}" "${f}" "${line}"
+      printf '%-*s  %-*s  %s\n' "${DATE_W}" "${mtime}" "${maxn}" "${f}" "${line}"
     else
-      printf '%s  %s\n' "${pad}" "${line}"
+      printf '%s  %s  %s\n' "${date_pad}" "${name_pad}" "${line}"
     fi
     i=$(( i + 1 ))
   done <<< "${shown}"
