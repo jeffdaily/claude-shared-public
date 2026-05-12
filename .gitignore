@@ -1,0 +1,16 @@
+# Sync runtime artifacts — never committed even if they land in the working tree
+.sync.log
+.sync.lock
+.commit-msg-pending
+
+# Defense in depth: these should never appear in the repo, but guard against
+# accidental cp/mv from ~/.claude/ into a synced subdir.
+.credentials.json
+**/sessions/
+**/*.jsonl
+**/shell-snapshots/
+**/cache/
+**/file-history/
+**/backups/
+**/mcp-needs-auth-cache.json
+**/.last-cleanup

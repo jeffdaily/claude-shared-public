@@ -1,0 +1,33 @@
+{
+  "theme": "dark",
+  "skipAutoPermissionPrompt": true,
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "tail -1 ~/claude-shared/.sync.log 2>/dev/null | sed 's/^\\[//; s/\\] / /'"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/claude-shared/hooks/pull.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/claude-shared/hooks/push.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
