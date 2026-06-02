@@ -6,7 +6,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "tail -1 ~/claude-shared/.sync.log 2>/dev/null | sed 's/^\\[//; s/\\] / /'"
+    "command": "~/claude-shared/hooks/statusline.sh"
   },
   "hooks": {
     "SessionStart": [

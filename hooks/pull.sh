@@ -10,6 +10,14 @@ LOCK="${REPO}/.git/.sync.lock"
 
 [ -d "${REPO}/.git" ] || exit 0
 
+# Rebase replays need a git identity even when there's nothing to replay
+# (autostash pop can also need one). Set generic, container-independent values
+# so this hook works on hosts without global git config.
+export GIT_AUTHOR_NAME=claude-sync
+export GIT_AUTHOR_EMAIL=claude-sync@local
+export GIT_COMMITTER_NAME=claude-sync
+export GIT_COMMITTER_EMAIL=claude-sync@local
+
 log() {
   printf '[%s] pull: %s\n' "$(date -u +%FT%TZ)" "$*" >> "${LOG}"
 }

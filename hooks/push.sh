@@ -10,6 +10,15 @@ LOCK="${REPO}/.git/.sync.lock"
 
 [ -d "${REPO}/.git" ] || exit 0
 
+# Generic identity for every git invocation in this script (commit + rebase
+# replays). Without this, the rebase fallback below fails on containers where
+# git user.email/user.name aren't configured globally, and the conflict-park
+# path silently discards local commits via `git reset --hard`.
+export GIT_AUTHOR_NAME=claude-sync
+export GIT_AUTHOR_EMAIL=claude-sync@local
+export GIT_COMMITTER_NAME=claude-sync
+export GIT_COMMITTER_EMAIL=claude-sync@local
+
 log() {
   printf '[%s] push: %s\n' "$(date -u +%FT%TZ)" "$*" >> "${LOG}"
 }

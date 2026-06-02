@@ -97,3 +97,9 @@ session.
   from each plan's first heading, word-wrapped to your terminal width.
   Detects the real terminal width by walking up the parent process tree to
   find a tty, since slash-command subshells have no tty of their own.
+- **Status line** (`hooks/statusline.sh`): surfaces the most recent
+  *meaningful* line from `.sync.log` (pushed, blocked, conflict, …) rather
+  than the boring `no changes` no-op that the Stop hook writes most turns,
+  and appends `(idle)` when nothing interesting has happened since — so you
+  can still tell the sync hooks are alive. Wired up via `statusLine` in
+  `settings.shared.json`.
