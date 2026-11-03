@@ -3,10 +3,13 @@
 # last-modified timestamp, filename, and a wrapped first-heading summary,
 # oldest first (newest at the bottom).
 #
-# Timestamp comes from `git log -1` of the file's last commit so the value is
-# stable across hosts (git doesn't preserve mtimes on checkout). Files that
-# aren't in git yet (uncommitted new plans) fall back to the local mtime and
-# are flagged with a trailing "*" so it's clear they're local-only.
+# Timestamp comes from the file's last *content-changing* commit so the value
+# is stable across hosts (git doesn't preserve mtimes on checkout). Commits
+# that re-add a file with unchanged content (e.g. a bulk restore of plans
+# recovered from history) are skipped by comparing blob hashes, so a restore
+# doesn't collapse every plan onto one date. Files that aren't in
+# git yet (uncommitted new plans) fall back to the local mtime and are flagged
+# with a trailing "*" so it's clear they're local-only.
 #
 # Terminal width detection: the subshell spawned by Claude Code's slash-command
 # host has no tty, so `tput cols` falls back to 80. Borrow the parent process's
@@ -59,6 +62,23 @@ DATE_W=17  # "YYYY-MM-DD HH:MM" + optional "*" marker
 shopt -s nullglob
 cd "${PLANS_DIR}"
 
+# Newest commit that actually changed the file's content. Walks add/modify
+# commits newest-first; while a commit's blob matches the next-older commit's
+# blob (a content-identical re-add), attribute the timestamp to the older one.
+last_change_ts() {
+  local p=$1 h ct blob cand_ts="" prev_blob=""
+  while read -r h ct; do
+    blob=$(git rev-parse -q --verify "${h}:./${p}" 2>/dev/null || true)
+    if [ -z "${cand_ts}" ] || [ "${blob}" = "${prev_blob}" ]; then
+      cand_ts=${ct}
+      prev_blob=${blob}
+      continue
+    fi
+    break
+  done < <(git log --format='%H %ct' --diff-filter=AM -- "${p}" 2>/dev/null)
+  printf '%s' "${cand_ts}"
+}
+
 # Build records sorted ascending (newest at the bottom). Prefer the file's last
 # git commit time (stable across hosts); fall back to local mtime with a "*"
 # marker if the file isn't tracked yet.
@@ -70,7 +90,7 @@ while IFS=$'\t' read -r _ts disp f; do
 done < <(
   for p in *.md; do
     [ -e "$p" ] || continue
-    ts=$(git log -1 --format=%ct -- "$p" 2>/dev/null || true)
+    ts=$(last_change_ts "$p")
     marker=""
     if [ -z "${ts}" ]; then
       ts=$(stat -c '%Y' -- "$p")

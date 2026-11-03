@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Format the Claude Code statusLine from ~/claude-shared/.sync.log.
+# Format the Claude Code statusLine from the repo's .sync.log.
 #
 # The Stop hook fires every turn and writes "no changes" most of the time,
 # which buries the meaningful events (pushed, blocked, conflict, etc.). This
@@ -9,13 +9,14 @@
 
 set -u
 
-LOG="${HOME}/claude-shared/.sync.log"
+# shellcheck source=lib.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 [ -f "${LOG}" ] || exit 0
 
 # "Boring" = a normal no-op invocation that proves the hook ran but says
 # nothing interesting. Everything else (pushed, blocked, failed, conflict,
 # pull with new commits, etc.) is meaningful.
-BORING_RE=' (push: no changes|pull: ok \(up to date\)|push: lock busy|pull: lock busy)$'
+BORING_RE=' (push: no changes|pull: ok \(up to date\)|(push|pull): lock busy.*)$'
 
 last_real=$(grep -E -v "${BORING_RE}" "${LOG}" | tail -1)
 last_any=$(tail -1 "${LOG}")

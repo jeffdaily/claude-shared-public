@@ -1,0 +1,7 @@
+# Everything in this repo is read by bash (hooks, installer) or by Claude Code
+# itself, on Linux containers and on Windows Git Bash alike. A Windows clone
+# with core.autocrlf=true checks .sh files out as CRLF, which breaks the
+# shebang and leaves a stray \r on the end of every unquoted value -- a failure
+# that is hard to see and easy to misread as a logic bug. Pin LF in the working
+# tree on every platform.
+* text=auto eol=lf

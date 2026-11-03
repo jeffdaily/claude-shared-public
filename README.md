@@ -63,6 +63,52 @@ The manual flow also works in foreign environments (any Linux box with `gh`,
 `git`, `jq`, and `claude` installed). `install.sh` must run *inside* a
 running container because it gates on `gh auth status`.
 
+## Setup (one time, per Windows machine)
+
+Windows is supported by the same `install.sh`, run from **Git Bash** (not
+PowerShell or cmd). Two requirements beyond the Linux ones:
+
+- **Developer Mode ON** (Settings > System > For developers), so unprivileged
+  symlinks are allowed. Without it `install.sh` aborts with instructions.
+  Running Git Bash as Administrator also works.
+- `gh`, `jq`, `git` on the Git Bash `PATH`, and `gh auth login` done.
+
+```sh
+git clone https://github.com/YOU/claude-shared.git /d/code/claude-shared
+CLAUDE_SHARED_OWNER=YOU /d/code/claude-shared/install.sh
+```
+
+The checkout does not have to live at `~/claude-shared`: the installer and the
+hooks locate the repo from their own path. A `~/claude-shared` symlink to the
+real checkout is created anyway so the Linux-shaped paths in these docs keep
+working.
+
+What differs from Linux, all handled by the installer:
+
+| | Linux | Windows | Why |
+|---|---|---|---|
+| `~/.claude/settings.json` | symlink to `settings.shared.json` | real file; shared keys merged in, local keys kept | The hook commands must name the Git Bash binary, so they are not portable. **Re-run `install.sh` after editing `settings.shared.json`.** |
+| Hook commands | `~/claude-shared/hooks/x.sh` | `"C:\...\bash.exe" -lc "/d/.../hooks/x.sh"` | The hook may be spawned by `cmd.exe`, which cannot run a `.sh`. `-lc` (login shell) is required: a bare `-c` inherits the Windows `PATH`, which has no `/mingw64/bin`, so `git`/`timeout`/`openssl` would be missing. |
+| `PROJECT_DIRS` memory slug | `/home/me/myrepo` -> `-home-me-myrepo` | `D:/code/myrepo` -> `D--code-myrepo` | Claude derives the slug from the checkout path, so the same project has separate memory on each platform. |
+
+Windows traps the scripts defend against; each fails silently if you hand-roll
+the setup:
+
+- **`ln -s` in Git Bash copies instead of linking** unless
+  `MSYS=winsymlinks:nativestrict` is set. A copy looks installed and then never
+  syncs again. `install.sh` sets it and verifies each result is really a link.
+- **`flock` does not exist in Git Bash.** A missing binary exits 127, which
+  would take the hooks' lock-busy branch, so they would exit 0 every turn while
+  logging a healthy-looking message and never sync. `hooks/lib.sh` falls back
+  to an atomic `mkdir` lock (with stale-lock breaking, since a `mkdir` lock is
+  not released when the holder dies).
+- **Process spawning is far costlier than on Linux.** `scan-secrets.sh`
+  matches with bash's built-in `=~` instead of piping each added line into
+  `grep`, which on Windows stalled the `Stop` hook for minutes on large diffs.
+- **CRLF checkouts.** `.gitattributes` pins `eol=lf`: a clone with
+  `core.autocrlf=true` would check the `.sh` files out as CRLF, which breaks
+  the shebang and leaves a stray CR on every unquoted value.
+
 ## How sync works
 
 - **`SessionStart` hook** runs `hooks/pull.sh`: `git pull --rebase` under a

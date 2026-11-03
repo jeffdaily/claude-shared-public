@@ -1,5 +1,5 @@
 # Sync runtime artifacts — never committed even if they land in the working tree
-.sync.log
+.sync.log*
 .sync.lock
 .commit-msg-pending
 
@@ -14,3 +14,9 @@
 **/backups/
 **/mcp-needs-auth-cache.json
 **/.last-cleanup
+
+# Claude Code's own cache of account-synced skills and its trash. Every
+# container rewrites these at session start, before the pull hook runs, so
+# tracking them guarantees cross-container conflicts.
+skills/synced/
+skills/.trash/
